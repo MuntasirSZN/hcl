@@ -1,0 +1,6 @@
+---
+source: tests/snapshot_tests.rs
+assertion_line: 14
+expression: opts.len()
+---
+3
