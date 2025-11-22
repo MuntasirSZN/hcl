@@ -4,11 +4,11 @@
 
 - [x] Add support for elvish and nushell in format
 - [x] Add --write flag for caching completions to ~/.hcl (cli.rs) (used with -c just caches in ~/.hcl the output)
-- [ ] Implement rc file append behavior for --write (auto-append to .bashrc/.zshrc/config.fish)
+- [x] Finalize --write design: user adds `source "$(hcl -c fzf --format zsh --write)"` (or similar) in rc files; hcl never auto-appends to rc files
 - [x] Add more snapshot regression tests for generators and parser
-- [ ] Reach 90%+ coverage in cargo llvm-cov
+- [x] Reach 90%+ coverage in cargo llvm-cov
 - [ ] Full h2o compatibility (100%) (https://github.com/yamaton/h2o.git)
-- [ ] Implement --write functionality to auto-append to .bashrc/.zshrc/.config/fish/config.fish
+- [x] Document --write usage pattern for rc files (no auto-append; user-managed source lines)
 - [ ] Caching mechanism with TTL (cache parsed help for N hours)
 - [ ] Performance optimization for 100+ MB help text files
 - [ ] Parallel parsing for multiple commands using rayon
