@@ -1,0 +1,21 @@
+---
+source: tests/snapshot_tests.rs
+assertion_line: 149
+expression: output
+---
+_test()
+{
+  local cur prev opts
+  COMPREPLY=()
+  cur="${COMP_WORDS[COMP_CWORD]}"
+  prev="${COMP_WORDS[COMP_CWORD-1]}"
+
+  opts="--verbose:Enable_verbose_mode -v:Enable_verbose_mode"
+
+  COMPREPLY=($(compgen -W "${opts}" -- ${cur}))
+  if type __ltrim_colon_completions &>/dev/null; then
+    __ltrim_colon_completions "$cur"
+  fi
+}
+
+complete -o bashdefault -o default -o nospace -F _test test

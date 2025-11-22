@@ -1,0 +1,6 @@
+---
+source: tests/snapshot_tests.rs
+expression: output
+---
+complete -c test -s 'v' -r -d 'Enable verbose mode using a file'
+complete -c test -l 'verbose' -r -d 'Enable verbose mode using a file'

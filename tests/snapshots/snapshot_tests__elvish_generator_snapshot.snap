@@ -1,0 +1,30 @@
+---
+source: tests/snapshot_tests.rs
+assertion_line: 75
+expression: output
+---
+use builtin;
+use str;
+
+set edit:completion:arg-completer[test] = {|@words|
+    fn spaces {|n|
+        builtin:repeat $n ' ' | str:join ''
+    }
+    fn cand {|text desc|
+        edit:complex-candidate $text &display=$text' '(spaces (- 14 (wcswidth $text)))$desc
+    }
+    var command = 'test'
+    for word $words[1..-1] {
+        if (str:has-prefix $word '-') {
+            break
+        }
+        set command = $command';'$word
+    }
+    var completions = [
+        &'test'= {
+            cand -v 'Enable verbose mode'
+            cand --verbose 'Enable verbose mode'
+        }
+    ]
+    $completions[$command]
+}

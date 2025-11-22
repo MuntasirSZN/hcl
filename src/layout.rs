@@ -139,4 +139,31 @@ mod tests {
         let usage = Layout::parse_usage(content);
         assert!(!usage.is_empty());
     }
+
+    #[test]
+    fn test_parse_and_preprocess_blockwise() {
+        let content = "\
+  -a, --all        show all\n\
+\n\
+      --verbose    be verbose\n";
+
+        let opts = Layout::parse_blockwise(content);
+        assert_eq!(opts.len(), 2);
+
+        let pairs = Layout::preprocess_blockwise(content);
+        assert!(pairs.iter().any(|(opt, _)| opt.contains("-a")));
+        assert!(pairs.iter().any(|(opt, _)| opt.contains("--verbose")));
+    }
+
+    #[test]
+    fn test_get_option_offsets() {
+        let content = "\
+      -a, --all        show all\n\
+      --verbose        be verbose\n";
+
+        let offsets = Layout::get_option_offsets(content);
+        assert!(!offsets.is_empty());
+        // both short and long options are aligned, so we should get a single offset
+        assert_eq!(offsets.len(), 1);
+    }
 }

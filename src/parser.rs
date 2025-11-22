@@ -172,7 +172,7 @@ impl Parser {
 
         let header_line = block.lines().next()?.to_lowercase();
         for keyword in keywords {
-            let pattern = format!(r#"^\s*{}\s*:?\s*$"#, regex::escape(keyword));
+            let pattern = format!(r"^\s*{}\s*:?\s*$", regex::escape(keyword));
             if let Ok(re) = Regex::new(&pattern)
                 && re.is_match(&header_line)
             {
@@ -189,6 +189,26 @@ mod tests {
     use super::*;
 
     #[test]
+    fn test_preprocess_same_and_next_line_descriptions() {
+        let input = "  -a, --all  show all\n  -b\n    show b";
+        let pairs = Parser::preprocess(input);
+        assert_eq!(pairs.len(), 2);
+        // Current implementation keeps the entire first line as the option
+        // part when it cannot separate a description on the same line.
+        assert_eq!(pairs[0].0, "-a, --all  show all");
+        assert_eq!(pairs[0].1, "");
+        assert_eq!(pairs[1].0, "-b");
+        assert_eq!(pairs[1].1, "show b");
+    }
+
+    #[test]
+    fn test_parse_usage_header_matches_keywords() {
+        let block = "Usage:\n  cmd [OPTIONS]\n";
+        let header = Parser::parse_usage_header(&["usage"], block).unwrap();
+        assert!(header.contains("usage"));
+    }
+
+    #[test]
     fn test_parse_opt_names() {
         let names = Parser::parse_opt_names("-v, --verbose");
         assert_eq!(names.len(), 2);
@@ -202,5 +222,32 @@ mod tests {
         assert_eq!(opts.len(), 1);
         assert_eq!(opts[0].names.len(), 2);
         assert_eq!(opts[0].description, "Enable verbose mode");
+    }
+
+    #[test]
+    fn test_parse_line_deduplicates_options() {
+        let input = "  -v, --verbose  verbose\n  -v, --verbose  verbose";
+        let opts = Parser::parse_line(input);
+        assert_eq!(opts.len(), 1);
+        assert_eq!(opts[0].names.len(), 2);
+    }
+
+    #[test]
+    fn test_parse_line_bioinformatics_style_help() {
+        let input = "  -i, --input FILE       Input FASTA/FASTQ file\n  -o, --output FILE      Output BAM file\n  --min-mapq INT         Minimum mapping quality (default: 30)";
+        let opts = Parser::parse_line(input);
+        assert_eq!(opts.len(), 3);
+
+        // Ensure all expected option names are detected, even if
+        // arguments/descriptions are not perfectly separated.
+        let all_names: Vec<String> = opts
+            .iter()
+            .flat_map(|o| o.names.iter().map(|n| n.raw.clone()))
+            .collect();
+        assert!(all_names.contains(&"-i".to_string()));
+        assert!(all_names.contains(&"--input".to_string()));
+        assert!(all_names.contains(&"-o".to_string()));
+        assert!(all_names.contains(&"--output".to_string()));
+        assert!(all_names.contains(&"--min-mapq".to_string()));
     }
 }

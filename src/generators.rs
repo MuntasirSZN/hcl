@@ -90,9 +90,9 @@ pub struct ZshGenerator;
 impl ZshGenerator {
     pub fn generate(cmd: &Command) -> String {
         let mut lines = vec![
-            "#compdef _hcl hcl".to_string(),
+            format!("#compdef {}", cmd.name),
             "".to_string(),
-            "_hcl() {".to_string(),
+            format!("_{}() {{", cmd.name),
             "  local -a options".to_string(),
             "".to_string(),
         ];
@@ -105,7 +105,7 @@ impl ZshGenerator {
         lines.push("  _arguments -s -S $options".to_string());
         lines.push("}".to_string());
         lines.push("".to_string());
-        lines.push("_hcl \"$@\"".to_string());
+        lines.push(format!("_{} \"$@\"", cmd.name));
 
         lines.join("\n")
     }
@@ -143,8 +143,12 @@ pub struct BashGenerator;
 
 impl BashGenerator {
     pub fn generate(cmd: &Command) -> String {
+        Self::generate_with_compat(cmd, false)
+    }
+
+    pub fn generate_with_compat(cmd: &Command, bash_completion_compat: bool) -> String {
         let mut lines = vec![
-            format!("_hcl_{}()", cmd.name),
+            format!("_{}()", cmd.name),
             "{".to_string(),
             "  local cur prev opts".to_string(),
             "  COMPREPLY=()".to_string(),
@@ -153,6 +157,149 @@ impl BashGenerator {
             "".to_string(),
         ];
 
+        let all_opts: Vec<String> = if bash_completion_compat {
+            cmd
+                .options
+                .iter()
+                .flat_map(|opt| {
+                    let base_desc = FishGenerator::truncate_after_period(&opt.description);
+                    let desc = base_desc
+                        .split_whitespace()
+                        .collect::<Vec<_>>()
+                        .join("_")
+                        .replace(':', "_");
+
+                    opt.names
+                        .iter()
+                        .filter_map(|name| {
+                            if matches!(
+                                name.opt_type,
+                                OptNameType::SingleDashAlone | OptNameType::DoubleDashAlone
+                            ) {
+                                None
+                            } else if desc.is_empty() {
+                                Some(name.raw.clone())
+                            } else {
+                                Some(format!("{}:{}", name.raw, desc))
+                            }
+                        })
+                        .collect::<Vec<_>>()
+                })
+                .collect::<BTreeSet<_>>()
+                .into_iter()
+                .collect()
+        } else {
+            cmd
+                .options
+                .iter()
+                .flat_map(|opt| {
+                    opt.names
+                        .iter()
+                        .filter_map(|name| {
+                            if matches!(
+                                name.opt_type,
+                                OptNameType::SingleDashAlone | OptNameType::DoubleDashAlone
+                            ) {
+                                None
+                            } else {
+                                Some(name.raw.clone())
+                            }
+                        })
+                        .collect::<Vec<_>>()
+                })
+                .collect::<BTreeSet<_>>()
+                .into_iter()
+                .collect()
+        };
+
+        lines.push(format!("  opts=\"{}\"", all_opts.join(" ")));
+        lines.push("".to_string());
+        lines.push("  COMPREPLY=($(compgen -W \"${opts}\" -- ${cur}))".to_string());
+
+        if bash_completion_compat {
+            lines.push("  if type __ltrim_colon_completions &>/dev/null; then".to_string());
+            lines.push("    __ltrim_colon_completions \"$cur\"".to_string());
+            lines.push("  fi".to_string());
+        }
+
+        lines.push("}".to_string());
+        lines.push("".to_string());
+        lines.push(format!(
+            "complete -o bashdefault -o default -o nospace -F _{} {}",
+            cmd.name, cmd.name
+        ));
+
+        lines.join("\n")
+    }
+}
+
+pub struct ElvishGenerator;
+
+impl ElvishGenerator {
+    pub fn generate(cmd: &Command) -> String {
+        let mut lines = Vec::new();
+        lines.push("use builtin;".to_string());
+        lines.push("use str;".to_string());
+        lines.push("".to_string());
+        lines.push(format!(
+            "set edit:completion:arg-completer[{}] = {{|@words|",
+            cmd.name
+        ));
+        lines.push("    fn spaces {|n|".to_string());
+        lines.push("        builtin:repeat $n ' ' | str:join ''".to_string());
+        lines.push("    }".to_string());
+        lines.push("    fn cand {|text desc|".to_string());
+        lines.push(
+            "        edit:complex-candidate $text &display=$text' '(spaces (- 14 (wcswidth $text)))$desc"
+                .to_string(),
+        );
+        lines.push("    }".to_string());
+        lines.push(format!("    var command = '{}'", cmd.name));
+        lines.push("    for word $words[1..-1] {".to_string());
+        lines.push("        if (str:has-prefix $word '-') {".to_string());
+        lines.push("            break".to_string());
+        lines.push("        }".to_string());
+        lines.push("        set command = $command';'$word".to_string());
+        lines.push("    }".to_string());
+        lines.push("    var completions = [".to_string());
+        lines.push(format!("        &'{}'= {{", cmd.name));
+
+        for opt in &cmd.options {
+            let desc = FishGenerator::truncate_after_period(&opt.description);
+            for name in &opt.names {
+                if matches!(
+                    name.opt_type,
+                    OptNameType::SingleDashAlone | OptNameType::DoubleDashAlone
+                ) {
+                    continue;
+                }
+                lines.push(format!(
+                    "            cand {} '{}'",
+                    name.raw,
+                    desc.replace("'", ""),
+                ));
+            }
+        }
+
+        lines.push("        }".to_string());
+        lines.push("    ]".to_string());
+        lines.push("    $completions[$command]".to_string());
+        lines.push("}".to_string());
+
+        lines.join("\n")
+    }
+}
+
+pub struct NushellGenerator;
+
+impl NushellGenerator {
+    pub fn generate(cmd: &Command) -> String {
+        let mut lines = Vec::new();
+        lines.push("module completions {".to_string());
+        lines.push("".to_string());
+
+        lines.push(format!("  # Completions for {} options", cmd.name));
+        lines.push(format!("  def \"nu-complete {} options\" [] {{", cmd.name));
         let all_opts: Vec<String> = cmd
             .options
             .iter()
@@ -164,7 +311,7 @@ impl BashGenerator {
                             name.opt_type,
                             OptNameType::SingleDashAlone | OptNameType::DoubleDashAlone
                         ) {
-                            Some(name.raw.clone())
+                            Some(format!("\"{}\"", name.raw))
                         } else {
                             None
                         }
@@ -175,15 +322,44 @@ impl BashGenerator {
             .into_iter()
             .collect();
 
-        lines.push(format!("  opts=\"{}\"", all_opts.join(" ")));
+        if all_opts.is_empty() {
+            lines.push("    []".to_string());
+        } else {
+            let joined = all_opts.join(" ");
+            lines.push(format!("    [ {} ]", joined));
+        }
+        lines.push("  }".to_string());
         lines.push("".to_string());
-        lines.push("  COMPREPLY=($(compgen -W \"${opts}\" -- ${cur}))".to_string());
+
+        lines.push(format!("  export extern {} [", cmd.name));
+
+        for opt in &cmd.options {
+            let desc = FishGenerator::truncate_after_period(&opt.description);
+            let arg = if opt.argument.is_empty() {
+                String::new()
+            } else {
+                format!(": string  # {}", opt.argument)
+            };
+
+            for name in &opt.names {
+                if matches!(
+                    name.opt_type,
+                    OptNameType::SingleDashAlone | OptNameType::DoubleDashAlone
+                ) {
+                    continue;
+                }
+
+                let flag = format!("    {}{} # {}", name.raw, arg, desc);
+
+                lines.push(flag);
+            }
+        }
+
+        lines.push("  ]".to_string());
+        lines.push("".to_string());
         lines.push("}".to_string());
         lines.push("".to_string());
-        lines.push(format!(
-            "complete -o bashdefault -o default -o nospace -F _hcl_{} {}",
-            cmd.name, cmd.name
-        ));
+        lines.push("export use completions *".to_string());
 
         lines.join("\n")
     }

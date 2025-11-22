@@ -1,0 +1,172 @@
+use assert_cmd::cargo::cargo_bin_cmd;
+use predicates::prelude::*;
+
+/// Ensure running with no args shows clap error about missing input
+#[test]
+fn cli_errors_without_input_source() {
+    let mut cmd = cargo_bin_cmd!("hcl");
+    cmd.assert()
+        .failure()
+        .stderr(predicate::str::contains(
+            "No input source specified. Use --command, --file, --subcommand, or --loadjson",
+        ));
+}
+
+/// Smoke-test --help output
+#[test]
+fn cli_help_works() {
+    let mut cmd = cargo_bin_cmd!("hcl");
+    cmd.arg("--help")
+        .assert()
+        .success()
+        .stdout(predicate::str::contains(
+            "hcl extracts CLI options from help text",
+        ));
+}
+
+/// Use a tiny help text via --file and generate native output
+#[test]
+fn cli_file_native_output() {
+    use std::io::Write;
+
+    let mut tmp = tempfile::NamedTempFile::new().expect("create temp help");
+    writeln!(
+        tmp,
+        "USAGE: mycmd [OPTIONS]\n\nOPTIONS:\n  -v, --verbose  be verbose"
+    )
+    .unwrap();
+    let path = tmp.path().to_str().unwrap().to_string();
+
+    let mut cmd = cargo_bin_cmd!("hcl");
+    cmd.args(["--file", &path, "--format", "native"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("USAGE: mycmd [OPTIONS]"));
+}
+
+/// Use the same help text but output JSON and ensure basic fields exist
+#[test]
+fn cli_file_json_output() {
+    use std::io::Write;
+
+    let mut tmp = tempfile::NamedTempFile::new().expect("create temp help");
+    writeln!(
+        tmp,
+        "USAGE: mycmd [OPTIONS]\n\nOPTIONS:\n  -v, --verbose  be verbose"
+    )
+    .unwrap();
+    let path = tmp.path().to_str().unwrap().to_string();
+
+    let mut cmd = cargo_bin_cmd!("hcl");
+    let assert = cmd
+        .args(["--file", &path, "--format", "json"])
+        .assert()
+        .success();
+
+    let stdout = String::from_utf8(assert.get_output().stdout.clone()).unwrap();
+    let value: serde_json::Value = serde_json::from_str(&stdout).expect("valid json");
+
+    let file_name = std::path::Path::new(&path)
+        .file_name()
+        .and_then(|n| n.to_str())
+        .unwrap();
+    assert_eq!(value["name"], file_name);
+    assert!(value["options"].is_array());
+}
+
+/// Ensure completions flag at least runs for bash
+#[test]
+fn cli_completions_bash() {
+    let mut cmd = cargo_bin_cmd!("hcl");
+    cmd.args(["--completions", "bash"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("_hcl"));
+}
+
+/// Test --list-subcommands path using a help snippet via --file
+#[test]
+fn cli_list_subcommands_from_file() {
+    use std::io::Write;
+
+    let mut tmp = tempfile::NamedTempFile::new().expect("create temp help");
+    writeln!(
+        tmp,
+        "USAGE: mytool [COMMAND]\n\nSUBCOMMANDS:\n  run   Run things\n  build Build things",
+    )
+    .unwrap();
+    let path = tmp.path().to_str().unwrap().to_string();
+
+    let mut cmd = cargo_bin_cmd!("hcl");
+    cmd.args(["--file", &path, "--list-subcommands"])
+        .assert()
+        .success()
+        .stdout(
+            predicate::str::contains("run").and(predicate::str::contains("build")),
+        );
+}
+
+/// Test debug/preprocess-only mode using --file
+#[test]
+fn cli_debug_preprocess_only() {
+    use std::io::Write;
+
+    let mut tmp = tempfile::NamedTempFile::new().expect("create temp help");
+    writeln!(
+        tmp,
+        "OPTIONS:\n  -v, --verbose  be verbose",
+    )
+    .unwrap();
+    let path = tmp.path().to_str().unwrap().to_string();
+
+    let mut cmd = cargo_bin_cmd!("hcl");
+    cmd.args(["--file", &path, "--debug"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("-v, --verbose"));
+}
+
+/// Smoke-test --command echo with skip_man so it uses --help
+#[test]
+fn cli_command_echo_native() {
+    let mut cmd = cargo_bin_cmd!("hcl");
+    cmd.args(["--command", "echo", "--skip-man", "--format", "native"])
+        .assert()
+        .success();
+}
+
+/// Test --loadjson path end-to-end
+#[test]
+fn cli_loadjson_native_output() {
+    use std::io::Write;
+
+    let cmd_struct = hcl::Command {
+        name: "jsoncmd".to_string(),
+        description: "Json command".to_string(),
+        usage: "jsoncmd [OPTIONS]".to_string(),
+        options: vec![hcl::types::Opt {
+            names: vec![hcl::types::OptName::new(
+                "-v".to_string(),
+                hcl::types::OptNameType::ShortType,
+            )],
+            argument: String::new(),
+            description: "Verbose".to_string(),
+        }],
+        subcommands: vec![],
+        version: String::new(),
+    };
+
+    let json = serde_json::to_string(&cmd_struct).unwrap();
+    let mut tmp = tempfile::NamedTempFile::new().expect("create json temp");
+    write!(tmp, "{}", json).unwrap();
+    let path = tmp.path().to_str().unwrap().to_string();
+
+    let mut cmd = cargo_bin_cmd!("hcl");
+    cmd.args(["--loadjson", &path, "--format", "native"])
+        .assert()
+        .success()
+        .stdout(
+            predicate::str::contains("Name:  jsoncmd")
+                .and(predicate::str::contains("-v (")),
+        );
+}

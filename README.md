@@ -57,8 +57,11 @@ hcl --command ls --format fish > ls.fish
 # Generate zsh completion script
 hcl --command git --format zsh > git.zsh
 
-# Generate bash completion script
+# Generate bash completion script (plain options only)
 hcl --command docker --format bash > docker.bash
+
+# Generate bash completion script compatible with bash-completion (includes descriptions)
+hcl --command docker --format bash --bash-completion-compat > docker.bash
 ```
 
 ### Export as JSON

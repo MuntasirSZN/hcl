@@ -125,3 +125,20 @@ impl Command {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_command_new_and_as_subcommand() {
+        let mut cmd = Command::new("test".to_string());
+        assert_eq!(cmd.name, "test");
+        assert!(cmd.description.is_empty());
+
+        cmd.description = "Test command".to_string();
+        let sub = cmd.as_subcommand();
+        assert_eq!(sub.cmd, "test");
+        assert_eq!(sub.desc, "Test command");
+    }
+}

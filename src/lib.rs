@@ -9,7 +9,9 @@ pub mod subcommand_parser;
 pub mod types;
 
 pub use cli::{Cli, Shell};
-pub use generators::{BashGenerator, FishGenerator, ZshGenerator};
+pub use generators::{
+    BashGenerator, ElvishGenerator, FishGenerator, NushellGenerator, ZshGenerator,
+};
 pub use io_handler::IoHandler;
 pub use json_gen::JsonGenerator;
 pub use layout::Layout;

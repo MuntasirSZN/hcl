@@ -1,0 +1,20 @@
+---
+source: tests/snapshot_tests.rs
+assertion_line: 97
+expression: output
+---
+module completions {
+
+  # Completions for test options
+  def "nu-complete test options" [] {
+    [ "--verbose" "-v" ]
+  }
+
+  export extern test [
+    -v # Enable verbose mode
+    --verbose # Enable verbose mode
+  ]
+
+}
+
+export use completions *

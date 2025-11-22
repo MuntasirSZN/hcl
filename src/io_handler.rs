@@ -57,4 +57,41 @@ mod tests {
         let output = IoHandler::normalize_text(input);
         assert!(!output.contains('\t'));
     }
+
+    #[test]
+    fn test_read_file_and_error() {
+        use std::io::Write;
+
+        let mut file = tempfile::NamedTempFile::new().expect("create temp file");
+        write!(file, "hello world").expect("write temp file");
+        let path = file.path().to_str().unwrap();
+
+        let content = IoHandler::read_file(path).expect("read temp file");
+        assert_eq!(content, "hello world");
+
+        let missing = IoHandler::read_file("/this/does/not/exist");
+        assert!(missing.is_err());
+    }
+
+    #[test]
+    fn test_read_from_command_success_and_failure() {
+        let out = IoHandler::read_from_command("echo hello").expect("run echo");
+        assert!(out.contains("hello"));
+
+        let res = IoHandler::read_from_command("exit 1");
+        assert!(res.is_err());
+    }
+
+    #[test]
+    fn test_get_command_help_and_manpage_and_is_man_available() {
+        let help = IoHandler::get_command_help("echo").expect("get help");
+        assert!(!help.is_empty());
+
+        let _man_available = IoHandler::is_man_available("echo");
+
+        if _man_available {
+            let man = IoHandler::get_manpage("echo").expect("get manpage");
+            assert!(!man.is_empty());
+        }
+    }
 }

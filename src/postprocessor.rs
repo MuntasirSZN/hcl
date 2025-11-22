@@ -107,4 +107,54 @@ mod tests {
         let result = Postprocessor::remove_bullets(text);
         assert!(!result.contains("•"));
     }
+
+    #[test]
+    fn test_unicode_and_tabs_helpers() {
+        // Text with various unicode spaces and a tab
+        let text = "\u{00A0}foo\u{2002}bar\u{2003}baz\tend";
+        let ascii = Postprocessor::unicode_spaces_to_ascii(text);
+
+        // Non-breaking/en-space/em-space should be replaced with ASCII spaces
+        assert_eq!(ascii, " foo  bar   baz\tend");
+
+        let with_spaces = Postprocessor::convert_tabs_to_spaces(&ascii, 4);
+        assert!(!with_spaces.contains('\t'));
+        assert!(with_spaces.ends_with("    end"));
+    }
+
+    #[test]
+    fn test_fix_command_filters_and_deduplicates() {
+        let valid_opt = Opt {
+            names: vec![OptName::new("-v".to_string(), OptNameType::ShortType)],
+            argument: String::new(),
+            description: "verbose".to_string(),
+        };
+
+        let invalid_opt = Opt {
+            names: vec![],
+            argument: String::new(),
+            description: String::new(),
+        };
+
+        let cmd = Command {
+            name: "root".to_string(),
+            description: String::new(),
+            usage: String::new(),
+            options: vec![valid_opt.clone(), valid_opt.clone(), invalid_opt],
+            subcommands: vec![Command {
+                name: "child".to_string(),
+                description: String::new(),
+                usage: String::new(),
+                options: vec![valid_opt.clone()],
+                subcommands: vec![],
+                version: String::new(),
+            }],
+            version: String::new(),
+        };
+
+        let fixed = Postprocessor::fix_command(cmd);
+        assert_eq!(fixed.options.len(), 1);
+        assert_eq!(fixed.subcommands.len(), 1);
+        assert_eq!(fixed.subcommands[0].options.len(), 1);
+    }
 }

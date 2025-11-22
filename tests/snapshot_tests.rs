@@ -1,5 +1,9 @@
+use clap::Parser as ClapParser;
 use hcl::types::OptNameType;
-use hcl::{Command, Opt, OptName, Parser, ZshGenerator};
+use hcl::{
+    BashGenerator, Cli, Command, ElvishGenerator, FishGenerator, NushellGenerator, Opt, OptName,
+    Parser as HclParser, ZshGenerator,
+};
 
 #[test]
 fn test_parse_ls_help_snapshot() {
@@ -10,7 +14,7 @@ OPTIONS:
   -b, --escape              print C-style escapes for nongraphic characters
 "#;
 
-    let opts = Parser::parse_line(ls_help);
+    let opts = HclParser::parse_line(ls_help);
     insta::assert_yaml_snapshot!(opts.len());
 }
 
@@ -45,6 +49,143 @@ Options:
   -p, --publish list        Publish a container's port(s) to the host
 "#;
 
-    let opts = Parser::parse_line(docker_help);
+    let opts = HclParser::parse_line(docker_help);
     insta::assert_yaml_snapshot!(opts.len());
+}
+
+#[test]
+fn test_elvish_generator_snapshot() {
+    let cmd = Command {
+        name: "test".to_string(),
+        description: "Test command".to_string(),
+        usage: "test [OPTIONS]".to_string(),
+        options: vec![Opt {
+            names: vec![
+                OptName::new("-v".to_string(), OptNameType::ShortType),
+                OptName::new("--verbose".to_string(), OptNameType::LongType),
+            ],
+            argument: String::new(),
+            description: "Enable verbose mode".to_string(),
+        }],
+        subcommands: vec![],
+        version: String::new(),
+    };
+
+    let output = ElvishGenerator::generate(&cmd);
+    insta::assert_snapshot!(output);
+}
+
+#[test]
+fn test_nushell_generator_snapshot() {
+    let cmd = Command {
+        name: "test".to_string(),
+        description: "Test command".to_string(),
+        usage: "test [OPTIONS]".to_string(),
+        options: vec![Opt {
+            names: vec![
+                OptName::new("-v".to_string(), OptNameType::ShortType),
+                OptName::new("--verbose".to_string(), OptNameType::LongType),
+            ],
+            argument: String::new(),
+            description: "Enable verbose mode".to_string(),
+        }],
+        subcommands: vec![],
+        version: String::new(),
+    };
+
+    let output = NushellGenerator::generate(&cmd);
+    insta::assert_snapshot!(output);
+}
+
+#[test]
+fn test_cli_short_f_and_conflicts() {
+    // -f should work as shorthand for --file
+    let cli = Cli::try_parse_from(["hcl", "-f", "file.txt", "--format", "json"]).unwrap();
+    assert_eq!(cli.file.as_deref(), Some("file.txt"));
+
+    // Conflicting flags should error
+    let res = Cli::try_parse_from(["hcl", "--command", "ls", "--file", "file.txt"]);
+    assert!(res.is_err());
+}
+
+#[test]
+fn test_cli_effective_format_and_helpers() {
+    let cli = Cli::try_parse_from(["hcl", "--command", "ls", "--format", "bash"]).unwrap();
+
+    // json flag off, effective_format should be underlying format
+    assert_eq!(cli.effective_format(), "bash");
+    assert_eq!(cli.get_input(), Some("ls"));
+    assert!(!cli.is_preprocess_only());
+
+    let cli_json =
+        Cli::try_parse_from(["hcl", "--command", "ls", "--format", "bash", "--json"]).unwrap();
+
+    // json flag forces json format
+    assert_eq!(cli_json.effective_format(), "json");
+}
+
+#[test]
+fn test_bash_generator_snapshot() {
+    let cmd = Command {
+        name: "test".to_string(),
+        description: "Test command".to_string(),
+        usage: "test [OPTIONS]".to_string(),
+        options: vec![Opt {
+            names: vec![
+                OptName::new("-v".to_string(), OptNameType::ShortType),
+                OptName::new("--verbose".to_string(), OptNameType::LongType),
+            ],
+            argument: String::new(),
+            description: "Enable verbose mode".to_string(),
+        }],
+        subcommands: vec![],
+        version: String::new(),
+    };
+
+    let output = BashGenerator::generate(&cmd);
+    insta::assert_snapshot!(output);
+}
+
+#[test]
+fn test_bash_generator_compat_snapshot() {
+    let cmd = Command {
+        name: "test".to_string(),
+        description: "Test command".to_string(),
+        usage: "test [OPTIONS]".to_string(),
+        options: vec![Opt {
+            names: vec![
+                OptName::new("-v".to_string(), OptNameType::ShortType),
+                OptName::new("--verbose".to_string(), OptNameType::LongType),
+            ],
+            argument: String::new(),
+            description: "Enable verbose mode".to_string(),
+        }],
+        subcommands: vec![],
+        version: String::new(),
+    };
+
+    let output = BashGenerator::generate_with_compat(&cmd, true);
+    insta::assert_snapshot!(output);
+}
+
+#[test]
+fn test_fish_generator_snapshot() {
+    let cmd = Command {
+        name: "test".to_string(),
+        description: "Test command".to_string(),
+        usage: "test [OPTIONS]".to_string(),
+        options: vec![Opt {
+            names: vec![
+                OptName::new("-v".to_string(), OptNameType::ShortType),
+                OptName::new("--verbose".to_string(), OptNameType::LongType),
+            ],
+            argument: "FILE".to_string(),
+            description: "Enable verbose mode using a file".to_string(),
+        }],
+        subcommands: vec![],
+        version: String::new(),
+    };
+
+    let output = FishGenerator::generate(&cmd);
+    insta::assert_snapshot!(output);
 }

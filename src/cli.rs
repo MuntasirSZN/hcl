@@ -19,30 +19,29 @@ pub enum Shell {
 
 #[derive(Parser, Debug)]
 #[command(
-    name = "hcl",
     version,
     about = "Parse help or manpage texts and generate shell completion scripts",
-    long_about = "hcl extracts CLI options from help text, and then exports as a shell completion script, or JSON."
+    long_about = "hcl extracts CLI options from help text and exports them as shell completion scripts or JSON.",
 )]
 pub struct Cli {
     /// Extract CLI options from the help texts or man pages associated with the command
-    #[arg(long, short = 'c')]
+    #[arg(long, short = 'c', conflicts_with_all = ["file", "subcommand", "loadjson"])]
     pub command: Option<String>,
 
     /// Extract CLI options from a file
-    #[arg(long)]
+    #[arg(long, short = 'f', conflicts_with_all = ["command", "subcommand", "loadjson"])]
     pub file: Option<String>,
 
     /// Extract CLI options from a subcommand (format: command-subcommand, e.g., git-log)
-    #[arg(long, short = 's')]
+    #[arg(long, short = 's', conflicts_with_all = ["command", "file", "loadjson"])]
     pub subcommand: Option<String>,
 
     /// Load JSON file in Command schema
-    #[arg(long)]
+    #[arg(long, conflicts_with_all = ["command", "file", "subcommand"])]
     pub loadjson: Option<String>,
 
-    /// Output format: bash, zsh, fish, json, native
-    #[arg(long, value_parser = ["bash", "zsh", "fish", "json", "native"], default_value = "native")]
+    /// Output format: bash, zsh, fish, json, native, elvish, nushell
+    #[arg(long, value_parser = ["bash", "zsh", "fish", "json", "native", "elvish", "nushell"], default_value = "native")]
     pub format: String,
 
     /// Output in JSON (same as --format=json)
@@ -54,11 +53,11 @@ pub struct Cli {
     pub skip_man: bool,
 
     /// List subcommands (debug)
-    #[arg(long)]
+    #[arg(long, conflicts_with = "loadjson")]
     pub list_subcommands: bool,
 
     /// Run preprocessing only (debug)
-    #[arg(long)]
+    #[arg(long, conflicts_with = "loadjson")]
     pub debug: bool,
 
     /// Set upper bound of the depth of subcommand level
@@ -73,6 +72,11 @@ pub struct Cli {
     /// Automatically detects shell and appends to appropriate rc file
     #[arg(long)]
     pub write: bool,
+
+    /// Use bash-completion extended format for bash output
+    /// (encodes descriptions as name:Description and calls __ltrim_colon_completions if available)
+    #[arg(long)]
+    pub bash_completion_compat: bool,
 }
 
 impl Cli {

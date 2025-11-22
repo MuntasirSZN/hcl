@@ -2,9 +2,10 @@
 
 ## High Priority (Future Work)
 
-- [ ] Add support for elvish and nushell in format
+- [x] Add support for elvish and nushell in format
 - [ ] Add --write flag for caching completions to rc files (cli.rs) (used with -c just caches in ~/.hcl the output)
-- [ ] more test cases with snapshot regression testing (90% whole coverage, full cargo llvm-cov must say 90%+ coverage)
+- [x] Add more snapshot regression tests for generators and parser
+- [ ] Reach 90%+ coverage in cargo llvm-cov
 - [ ] Full h2o compatibility (100%) (https://github.com/yamaton/h2o.git)
 - [ ] Implement --write functionality to auto-append to .bashrc/.zshrc/.config/fish/config.fish
 - [ ] Caching mechanism with TTL (cache parsed help for N hours)
@@ -18,7 +19,7 @@
 
 ## Medium Priority
 
-- [ ] Add -f short flag support for --file (if original supported)
+- [x] Add -f short flag support for --file (if original supported)
 - [ ] Property-based testing with proptest
 - [ ] Stress tests with massive help text files
 - [ ] Performance benchmarking suite with criterion
@@ -28,10 +29,10 @@
 - [ ] Plugin system for custom parsers
 - [ ] Interactive mode for testing completions
 - [ ] Completion validation checker
-- [ ] Shell-specific optimizations
+- [x] Shell-specific optimizations (bash/zsh completions improved)
 
 ## Research Items
 
-- [ ] Verify if original h2o supported -f shorthand
-- [ ] Check bioinformatics tool parsing edge cases
-- [ ] Evaluate roff parser complexity vs. benefit
+- [x] Verify if original h2o supported -f shorthand
+- [x] Check bioinformatics tool parsing edge cases (covered by dedicated parser test)
+- [x] Evaluate roff parser complexity vs. benefit (decision: keep future roff parser as separate crate; defer implementation)
