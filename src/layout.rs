@@ -8,28 +8,62 @@ pub struct Layout;
 impl Layout {
     /// Parse content into options, processing blocks in parallel.
     pub fn parse_blockwise(content: &str) -> Vec<Opt> {
-        let blocks = Self::split_into_blocks(content);
+        let blocks = Self::split_into_blocks_fast(content);
 
         // Use parallel iterator for processing multiple blocks
-        blocks
-            .par_iter()
-            .flat_map(|block| Parser::parse_line(block))
-            .collect()
+        // Only parallelize if we have enough blocks to benefit
+        if blocks.len() > 4 {
+            blocks
+                .par_iter()
+                .flat_map(|block| Parser::parse_line(block))
+                .collect()
+        } else {
+            blocks
+                .iter()
+                .flat_map(|block| Parser::parse_line(block))
+                .collect()
+        }
     }
 
     /// Preprocess content into option/description pairs, processing blocks in parallel.
     pub fn preprocess_blockwise(content: &str) -> Vec<(String, String)> {
-        let blocks = Self::split_into_blocks(content);
+        let blocks = Self::split_into_blocks_fast(content);
 
-        // Use parallel iterator for processing multiple blocks
-        blocks
-            .par_iter()
-            .flat_map(|block| Parser::preprocess(block))
-            .collect()
+        // Only parallelize if we have enough blocks
+        if blocks.len() > 4 {
+            blocks
+                .par_iter()
+                .flat_map(|block| Parser::preprocess(block))
+                .collect()
+        } else {
+            blocks
+                .iter()
+                .flat_map(|block| Parser::preprocess(block))
+                .collect()
+        }
     }
 
     pub fn parse_usage(content: &str) -> String {
         let keywords = ["usage", "synopsis"];
+
+        // Fast scan for keywords first
+        let lower = content.to_lowercase();
+        let mut keyword_pos = None;
+        for keyword in &keywords {
+            if let Some(pos) = lower.find(keyword) {
+                // Check if followed by ':'
+                let rest = &lower[pos..];
+                if rest.contains(':') {
+                    keyword_pos = Some(pos);
+                    break;
+                }
+            }
+        }
+
+        if keyword_pos.is_none() {
+            return String::new();
+        }
+
         let lines: Vec<&str> = content.lines().collect();
 
         for (i, line) in lines.iter().enumerate() {
@@ -50,10 +84,11 @@ impl Layout {
         String::new()
     }
 
-    fn split_into_blocks(content: &str) -> Vec<String> {
+    /// Optimized block splitting that minimizes allocations
+    fn split_into_blocks_fast(content: &str) -> Vec<String> {
         let lines: Vec<&str> = content.lines().collect();
-        let mut blocks = Vec::new();
-        let mut current_block = Vec::new();
+        let mut blocks = Vec::with_capacity(lines.len() / 10 + 1);
+        let mut current_block = Vec::with_capacity(32);
 
         for line in lines {
             let trimmed = line.trim_start();
@@ -61,7 +96,7 @@ impl Layout {
             if trimmed.is_empty() {
                 if !current_block.is_empty() {
                     blocks.push(current_block.join("\n"));
-                    current_block = Vec::new();
+                    current_block.clear();
                 }
             } else if trimmed.starts_with('-') || !current_block.is_empty() {
                 current_block.push(line);

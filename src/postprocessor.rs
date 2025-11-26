@@ -1,4 +1,5 @@
 use crate::types::{Command, Opt};
+use memchr::memmem;
 use std::collections::HashSet;
 
 pub struct Postprocessor;
@@ -14,7 +15,7 @@ impl Postprocessor {
 
     fn deduplicate_options(options: Vec<Opt>) -> Vec<Opt> {
         let mut seen = HashSet::new();
-        let mut result = Vec::new();
+        let mut result = Vec::with_capacity(options.len());
 
         for opt in options {
             let key = (
@@ -45,33 +46,79 @@ impl Postprocessor {
     }
 
     pub fn remove_bullets(text: &str) -> String {
-        text.lines()
-            .map(|line| {
-                let trimmed = line.trim_start();
-                let mut chars = trimmed.chars();
-                let first = chars.next();
+        // Pre-allocate with capacity hint
+        let mut result = String::with_capacity(text.len());
+        let mut first = true;
 
-                if (first == Some('•') || first == Some('*') || first == Some('-'))
-                    && let Some(second) = chars.next()
-                    && second.is_whitespace()
-                {
-                    let prefix = &line[..line.len() - trimmed.len()];
-                    let content = chars.as_str().trim_start();
-                    return format!("{}{}", prefix, content);
+        for line in text.lines() {
+            if !first {
+                result.push('\n');
+            }
+            first = false;
+
+            let trimmed = line.trim_start();
+            let prefix_len = line.len() - trimmed.len();
+            let bytes = trimmed.as_bytes();
+
+            // Fast path: check first byte for bullet characters
+            if bytes.len() >= 2 {
+                let is_bullet = match bytes[0] {
+                    b'*' | b'-' => bytes[1].is_ascii_whitespace(),
+                    // UTF-8 bullet point (•) starts with 0xE2
+                    0xE2 if bytes.len() >= 4 && bytes[1] == 0x80 && bytes[2] == 0xA2 => {
+                        bytes[3].is_ascii_whitespace()
+                    }
+                    _ => false,
+                };
+
+                if is_bullet {
+                    result.push_str(&line[..prefix_len]);
+                    // Skip bullet and whitespace
+                    let skip = if bytes[0] == 0xE2 { 4 } else { 2 };
+                    result.push_str(trimmed[skip..].trim_start());
+                    continue;
                 }
-                line.to_string()
-            })
-            .collect::<Vec<_>>()
-            .join("\n")
+            }
+            result.push_str(line);
+        }
+
+        result
     }
 
     pub fn unicode_spaces_to_ascii(text: &str) -> String {
-        text.replace('\u{00A0}', " ")
-            .replace('\u{2003}', "   ")
-            .replace('\u{2002}', "  ")
+        // Fast path: if no unicode spaces found, return borrowed string
+        let nbsp = "\u{00A0}";
+        let em_space = "\u{2003}";
+        let en_space = "\u{2002}";
+
+        let has_nbsp = memmem::find(text.as_bytes(), nbsp.as_bytes()).is_some();
+        let has_em = memmem::find(text.as_bytes(), em_space.as_bytes()).is_some();
+        let has_en = memmem::find(text.as_bytes(), en_space.as_bytes()).is_some();
+
+        if !has_nbsp && !has_em && !has_en {
+            return text.to_string();
+        }
+
+        // Pre-allocate result
+        let mut result = String::with_capacity(text.len());
+
+        for c in text.chars() {
+            match c {
+                '\u{00A0}' => result.push(' '),
+                '\u{2003}' => result.push_str("   "),
+                '\u{2002}' => result.push_str("  "),
+                _ => result.push(c),
+            }
+        }
+
+        result
     }
 
     pub fn convert_tabs_to_spaces(text: &str, spaces: usize) -> String {
+        // Fast path: no tabs
+        if !text.contains('\t') {
+            return text.to_string();
+        }
         text.replace('\t', &" ".repeat(spaces))
     }
 }

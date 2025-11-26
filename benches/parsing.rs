@@ -383,3 +383,144 @@ fn optname_from_text_batch(bencher: Bencher) {
         }
     });
 }
+
+// ============================================================================
+// Massive file benchmarks (100+ MB stress tests)
+// ============================================================================
+
+fn sample_help_massive() -> String {
+    // Generates ~1MB of help text (scaled down from 100MB for practical benchmarking)
+    // Each option line is ~80 bytes, 10000 options = ~800KB
+    let mut lines = vec!["Usage: massivecmd [OPTIONS] [COMMAND]".to_string()];
+    lines.push(String::new());
+    lines.push("Options:".to_string());
+
+    for i in 0..10000 {
+        lines.push(format!(
+            "  -{}, --option-{:<6}  {}",
+            (b'a' + (i % 26) as u8) as char,
+            i,
+            "Description text that provides detailed information about this option and its usage patterns in various scenarios."
+        ));
+    }
+
+    lines.push(String::new());
+    lines.push("Commands:".to_string());
+    for i in 0..500 {
+        lines.push(format!(
+            "  subcmd{:<6}    Subcommand {} with a detailed description of what it does",
+            i, i
+        ));
+    }
+
+    lines.join("\n")
+}
+
+fn sample_help_10mb() -> String {
+    // Generates ~10MB of help text
+    let mut lines = vec!["Usage: hugecmd [OPTIONS] [COMMAND]".to_string()];
+    lines.push(String::new());
+    lines.push("Options:".to_string());
+
+    for i in 0..100000 {
+        lines.push(format!(
+            "  --option-{:<8}  {}",
+            i,
+            "A".repeat(50 + (i % 50))
+        ));
+    }
+
+    lines.join("\n")
+}
+
+fn sample_command_massive() -> Command {
+    let options: Vec<Opt> = (0..5000)
+        .map(|i| Opt {
+            names: vec![
+                OptName::new(
+                    format!("-{}", (b'a' + (i % 26) as u8) as char),
+                    OptNameType::ShortType,
+                ),
+                OptName::new(format!("--option-{}", i), OptNameType::LongType),
+            ],
+            argument: if i % 2 == 0 {
+                "ARG".to_string()
+            } else {
+                String::new()
+            },
+            description: format!(
+                "This is the description for option number {} with additional context",
+                i
+            ),
+        })
+        .collect();
+
+    Command {
+        name: "massivecmd".to_string(),
+        description: "A massive command with thousands of options".to_string(),
+        usage: "massivecmd [OPTIONS]".to_string(),
+        options,
+        subcommands: Vec::new(),
+        version: "1.0.0".to_string(),
+    }
+}
+
+#[divan::bench]
+fn parse_blockwise_massive(bencher: Bencher) {
+    let help = sample_help_massive();
+    bencher.bench_local(|| Layout::parse_blockwise(black_box(&help)));
+}
+
+#[divan::bench]
+fn parse_blockwise_10mb(bencher: Bencher) {
+    let help = sample_help_10mb();
+    bencher.bench_local(|| Layout::parse_blockwise(black_box(&help)));
+}
+
+#[divan::bench]
+fn preprocess_blockwise_massive(bencher: Bencher) {
+    let help = sample_help_massive();
+    bencher.bench_local(|| Layout::preprocess_blockwise(black_box(&help)));
+}
+
+#[divan::bench]
+fn generate_bash_massive(bencher: Bencher) {
+    let cmd = sample_command_massive();
+    bencher.bench_local(|| BashGenerator::generate(black_box(&cmd)));
+}
+
+#[divan::bench]
+fn generate_zsh_massive(bencher: Bencher) {
+    let cmd = sample_command_massive();
+    bencher.bench_local(|| ZshGenerator::generate(black_box(&cmd)));
+}
+
+#[divan::bench]
+fn generate_fish_massive(bencher: Bencher) {
+    let cmd = sample_command_massive();
+    bencher.bench_local(|| FishGenerator::generate(black_box(&cmd)));
+}
+
+#[divan::bench]
+fn generate_json_massive(bencher: Bencher) {
+    let cmd = sample_command_massive();
+    bencher.bench_local(|| JsonGenerator::generate(black_box(&cmd)));
+}
+
+#[divan::bench]
+fn postprocess_fix_command_massive(bencher: Bencher) {
+    let cmd = sample_command_massive();
+    bencher.bench_local(|| Postprocessor::fix_command(black_box(cmd.clone())));
+}
+
+#[divan::bench]
+fn postprocess_unicode_spaces_massive(bencher: Bencher) {
+    let text = "Hello\u{00A0}world\u{2003}with\u{2009}unicode\u{202F}spaces".repeat(10000);
+    bencher.bench_local(|| Postprocessor::unicode_spaces_to_ascii(black_box(&text)));
+}
+
+#[divan::bench]
+fn postprocess_remove_bullets_massive(bencher: Bencher) {
+    let text = "• Item one\n• Item two\n• Item three\n".repeat(10000);
+    bencher.bench_local(|| Postprocessor::remove_bullets(black_box(&text)));
+}

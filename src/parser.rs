@@ -16,8 +16,8 @@ pub struct Parser;
 impl Parser {
     pub fn parse_line(s: &str) -> Vec<Opt> {
         let pairs = Self::preprocess(s);
-        let mut opts = Vec::new();
-        let mut seen = std::collections::HashSet::new();
+        let mut opts = Vec::with_capacity(pairs.len());
+        let mut seen = std::collections::HashSet::with_capacity(pairs.len());
 
         for (opt_str, desc_str) in pairs {
             for opt in Self::parse_with_opt_part(&opt_str, &desc_str) {
@@ -30,56 +30,58 @@ impl Parser {
     }
 
     pub fn preprocess(s: &str) -> Vec<(String, String)> {
-        let mut result = Vec::new();
         let lines: Vec<&str> = s.lines().collect();
+        let mut result = Vec::with_capacity(lines.len());
         let mut i = 0;
 
         while i < lines.len() {
             let line = lines[i];
             let trimmed = line.trim_start();
 
-            if trimmed.starts_with('-') {
-                // Try to split option and description from the same line first
-                // Most help text has format: "  -v, --verbose         description text"
-                let parts: Vec<&str> = trimmed.split_whitespace().collect();
+            // Fast path: skip lines that don't start with '-'
+            if !trimmed.starts_with('-') {
+                i += 1;
+                continue;
+            }
 
-                // Find where description starts (after option names/args)
-                let mut opt_end = 0;
-                for (idx, part) in parts.iter().enumerate() {
-                    if part.starts_with('-') || idx == 0 {
-                        opt_end = idx + 1;
-                    } else if part.contains('=') || !part.starts_with('-') {
-                        // Could be an argument marker
-                        opt_end = idx + 1;
-                    } else {
-                        break;
-                    }
-                }
+            // Try to split option and description from the same line first
+            // Most help text has format: "  -v, --verbose         description text"
+            let parts: Vec<&str> = trimmed.split_whitespace().collect();
 
-                if opt_end > 0 && opt_end < parts.len() {
-                    // Description is on the same line
-                    let opt_str = parts[0..opt_end].join(" ");
-                    let desc_str = parts[opt_end..].join(" ");
-                    result.push((opt_str, desc_str));
-                    i += 1;
-                } else if opt_end > 0 {
-                    // No description on this line, try next line
-                    let opt_str = trimmed.to_string();
-                    let desc_str =
-                        if i + 1 < lines.len() && !lines[i + 1].trim_start().starts_with('-') {
-                            lines[i + 1].trim().to_string()
-                        } else {
-                            String::new()
-                        };
-
-                    if !desc_str.is_empty() {
-                        result.push((opt_str, desc_str));
-                        i += 2;
-                    } else {
-                        result.push((opt_str, String::new()));
-                        i += 1;
-                    }
+            // Find where description starts (after option names/args)
+            let mut opt_end = 0;
+            for (idx, part) in parts.iter().enumerate() {
+                if part.starts_with('-') || idx == 0 {
+                    opt_end = idx + 1;
+                } else if part.contains('=') || !part.starts_with('-') {
+                    // Could be an argument marker
+                    opt_end = idx + 1;
                 } else {
+                    break;
+                }
+            }
+
+            if opt_end > 0 && opt_end < parts.len() {
+                // Description is on the same line
+                let opt_str = parts[0..opt_end].join(" ");
+                let desc_str = parts[opt_end..].join(" ");
+                result.push((opt_str, desc_str));
+                i += 1;
+            } else if opt_end > 0 {
+                // No description on this line, try next line
+                let opt_str = trimmed.to_string();
+                let desc_str = if i + 1 < lines.len() && !lines[i + 1].trim_start().starts_with('-')
+                {
+                    lines[i + 1].trim().to_string()
+                } else {
+                    String::new()
+                };
+
+                if !desc_str.is_empty() {
+                    result.push((opt_str, desc_str));
+                    i += 2;
+                } else {
+                    result.push((opt_str, String::new()));
                     i += 1;
                 }
             } else {
@@ -106,17 +108,15 @@ impl Parser {
     }
 
     fn parse_opt_names(s: &str) -> Vec<OptName> {
-        let parts: Vec<&str> = s.split([',', '/', '|']).collect();
-        let mut names = Vec::new();
+        let mut names = Vec::with_capacity(4);
 
-        for part in parts {
+        for part in s.split([',', '/', '|']) {
             let trimmed = part.trim();
             if trimmed.is_empty() {
                 continue;
             }
 
-            let words: Vec<&str> = trimmed.split_whitespace().collect();
-            for word in words {
+            for word in trimmed.split_whitespace() {
                 if word.starts_with('-')
                     && let Some(name) = OptName::from_text(word)
                 {
@@ -131,23 +131,15 @@ impl Parser {
     }
 
     fn parse_opt_arg(s: &str) -> String {
-        let parts: Vec<&str> = s.split([',', '/', '|']).collect();
-        let mut args = Vec::new();
-
-        for part in parts {
+        for part in s.split([',', '/', '|']) {
             let trimmed = part.trim();
             if let Some(arg) = Self::extract_arg_from_part(trimmed)
                 && !arg.is_empty()
             {
-                args.push(arg);
+                return arg;
             }
         }
-
-        if args.is_empty() {
-            String::new()
-        } else {
-            args[0].clone()
-        }
+        String::new()
     }
 
     fn extract_arg_from_part(s: &str) -> Option<String> {
