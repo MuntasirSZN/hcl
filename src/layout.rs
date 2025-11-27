@@ -98,10 +98,9 @@ impl Layout {
                 let mut first = true;
 
                 for l in lines[i..].iter() {
-                    if (l.is_empty() || (!l.starts_with(' ') && !l.contains(':')))
-                        && !first {
-                            break;
-                        }
+                    if (l.is_empty() || (!l.starts_with(' ') && !l.contains(':'))) && !first {
+                        break;
+                    }
                     if !first {
                         usage_result.push('\n');
                     }

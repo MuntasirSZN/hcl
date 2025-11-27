@@ -20,7 +20,7 @@ aho-corasick = "1.1"
 anyhow = "1.0"
 argfile = "0.2.1"
 ascii = "1.1"
-bstr = "1.11"
+bstr = "1.12"
 bytecount = "0.6"
 clap = { version = "4.5", features = ["cargo", "derive", "env"] }
 clap_complete = "4.5"

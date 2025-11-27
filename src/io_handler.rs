@@ -52,10 +52,11 @@ impl IoHandler {
             while let Some(&b) = iter.next() {
                 if b == b' '
                     && let Some(&&next) = iter.peek()
-                        && next == b' ' {
-                            found = true;
-                            break;
-                        }
+                    && next == b' '
+                {
+                    found = true;
+                    break;
+                }
             }
             found
         };
