@@ -13,7 +13,7 @@ jobs:
       security-events: write
     steps:
       - name: Checkout repository
-        uses: actions/checkout@71cf2267d89c5cb81562390fa70a37fa40b1305e # v6-beta
+        uses: actions/checkout@71cf2267d89c5cb81562390fa70a37fa40b1305e # v6
         with:
           persist-credentials: false
       - name: Run zizmor
