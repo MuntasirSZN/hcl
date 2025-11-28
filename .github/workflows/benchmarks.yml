@@ -1,9 +1,23 @@
 name: Benchmarks
 on:
   push:
+    paths:
+      - "src/**"
+      - "benches/**"
+      - "Cargo.toml"
+      - "Cargo.lock"
+      - "build.rs"
+      - ".github/workflows/benchmarks.yml"
     branches:
       - "main"
   pull_request:
+    paths:
+      - "src/**"
+      - "benches/**"
+      - "Cargo.toml"
+      - "Cargo.lock"
+      - "build.rs"
+      - ".github/workflows/benchmarks.yml"
   workflow_dispatch:
 permissions:
   contents: read
