@@ -77,12 +77,9 @@ jobs:
   coverage:
     name: Code Coverage
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      id-token: write
     steps:
       - name: Checkout
-        uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 # v6.0.0
+        uses: actions/checkout@71cf2267d89c5cb81562390fa70a37fa40b1305e # v6-beta
         with:
           persist-credentials: false
       - name: Setup rust toolchain, cache, install nextest and cargo-llvm-cov
@@ -97,9 +94,13 @@ jobs:
           cargo +nightly llvm-cov --all-features --no-report nextest
           cargo +nightly llvm-cov --all-features --no-report --doc
           cargo +nightly llvm-cov report --doctests --lcov --output-path lcov.info
+      - name: Upload test results to Codecov
+        if: ${{ !cancelled() }}
+        uses: codecov/test-results-action@47f89e9acb64b76debcd5ea40642d25a4adced9f # v1.1.1
+        with:
+          file: target/nextest/default/junit.xml
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@5a1091511ad55cbe89839c7260b706298ca349f7 # v5.5.1
         with:
-          use_oidc: true
           files: lcov.info
           fail_ci_if_error: false
