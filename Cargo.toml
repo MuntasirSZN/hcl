@@ -85,19 +85,21 @@ shadow-rs = "1.4"
 
 [target.'cfg(all(target_os = "linux", not(target_arch = "arm"), not(target_arch = "aarch64")))'.dependencies]
 mimalloc-safe = { version = "0.1.55", features = [
+  "extended",
   "local_dynamic_tls",
   "skip_collect_on_exit"
 ] }
 
 [target.'cfg(all(target_os = "linux", target_arch = "aarch64"))'.dependencies]
 mimalloc-safe = { version = "0.1.55", features = [
+  "extended",
   "local_dynamic_tls",
   "no_opt_arch",
   "skip_collect_on_exit"
 ] }
 
 [target.'cfg(not(any(target_os = "linux", target_os = "freebsd", target_arch = "arm")))'.dependencies]
-mimalloc-safe = { version = "0.1.55", features = ["skip_collect_on_exit"] }
+mimalloc-safe = { version = "0.1.55", features = ["skip_collect_on_exit", "extended"] }
 
 [profile.release]
 opt-level = 3
