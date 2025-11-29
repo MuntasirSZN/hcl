@@ -65,7 +65,7 @@ jobs:
         run: |
           mkdir -p d2o-${{ matrix.target }}
           cp target/${{ matrix.target }}/release/d2o d2o-${{ matrix.target }}/
-          cp -r completions man d2o-${{ matrix.target }}/ 2>/dev/null || true
+          cp -r out/man out/completions d2o-${{ matrix.target }}/
           cp README.md LICENSE d2o-${{ matrix.target }}/
           tar -czf d2o-${{ matrix.target }}.tar.gz d2o-${{ matrix.target }}/
         shell: bash
@@ -75,7 +75,7 @@ jobs:
         run: |
           New-Item -ItemType Directory -Path "d2o-${{ matrix.target }}" -Force
           Copy-Item "target/${{ matrix.target }}/release/d2o.exe" "d2o-${{ matrix.target }}/"
-          Copy-Item "completions", "man" "d2o-${{ matrix.target }}/" -Recurse -Force -ErrorAction SilentlyContinue
+          Copy-Item "out/completions", "out/man" "d2o-${{ matrix.target }}/" -Recurse -Force
           Copy-Item "README.md", "LICENSE" "d2o-${{ matrix.target }}/"
           Compress-Archive -Path "d2o-${{ matrix.target }}" -DestinationPath "d2o-${{ matrix.target }}.zip" -Force
       - name: Upload artifact
