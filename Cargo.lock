@@ -1421,9 +1421,9 @@ checksum = "4dfac11c0cd0606aaf7eb9ef66f82c119438a96dc487715abb8b57fdf08ad4fe"
 
 [[package]]
 name = "scc"
-version = "3.4.2"
+version = "3.4.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cd714a8af37b350df813d52ae4b2ea19211e40dac10dce189d80fb95e44cc618"
+checksum = "2a7a1e69112b94b624574f6d6a88a64b3d9bf016d2f97a44986dee7e4d39567b"
 dependencies = [
  "saa",
  "sdd",
@@ -1431,9 +1431,9 @@ dependencies = [
 
 [[package]]
 name = "sdd"
-version = "4.3.3"
+version = "4.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6e4efd216416190644cfc82b398d603be158c29ffd7ee171fd29773a0b5734a7"
+checksum = "7168ecf885fdd3920ade15d50189593b076e1d060b60406a745766380195d65a"
 
 [[package]]
 name = "serde"
